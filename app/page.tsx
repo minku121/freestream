@@ -1,101 +1,181 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
+
+import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
+
+const VideoPlayer = dynamic(() => import("./component/video-player"), {
+  ssr: false,
+  loading: () => <div className="aspect-video bg-gray-800 animate-pulse" />
+})
+
+interface ChatMessage {
+  type: 'message' | 'system'
+  user: string
+  content: string
+  timestamp: number
+}
+
+export default function StreamingPlatform() {
+  // Sample stream URLs - in a real app, these would come from your API
+  const streamSources = [
+   
+    "https://sendgbxt.ruscfd.lat/720p.m3u8",
+  ]
+
+  const [currentStreamUrl, setCurrentStreamUrl] = useState(streamSources[0])
+  const [isLoading, setIsLoading] = useState(false)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messageInput, setMessageInput] = useState('')
+  const [username, setUsername] = useState('')
+  const [showUsernameForm, setShowUsernameForm] = useState(true)
+  const wsRef = useRef<WebSocket | null>(null)
+
+  useEffect(() => {
+    wsRef.current = new WebSocket('wss://node-chat-2-8oue.onrender.com')
+    
+    wsRef.current.onmessage = (event) => {
+      const message = JSON.parse(event.data)
+      if (message.type === 'userList') {
+        // Handle user list updates if needed
+      }
+      setMessages(prev => [...prev, message])
+    }
+
+    return () => {
+      wsRef.current?.close()
+    }
+  }, [])
+
+  const handleSetUsername = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (username.trim() && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'setUsername',
+        username: username.trim()
+      }))
+      setShowUsernameForm(false)
+    }
+  }
+
+  const sendMessage = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (messageInput.trim() && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'message',
+        content: messageInput.trim()
+      }))
+      setMessageInput('')
+    }
+  }
+
+  const refreshStream = () => {
+    setIsLoading(true)
+    // Simulate fetching a new stream URL
+    const randomIndex = Math.floor(Math.random() * streamSources.length)
+    setTimeout(() => {
+      setCurrentStreamUrl(streamSources[randomIndex])
+      setIsLoading(false)
+    }, 1000)
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
+     
+      <main className="container mx-auto px-4 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Live Stream</h1>
+          <Button
+            onClick={refreshStream}
+            variant="outline"
+            className="flex items-center gap-2 bg-transparent border-purple-500 text-purple-400 hover:bg-purple-900 hover:text-purple-100"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh Stream
+          </Button>
+        </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        <div className="rounded-lg overflow-hidden shadow-2xl border border-purple-900/50">
+          <VideoPlayer streamUrl={currentStreamUrl} key={currentStreamUrl} />
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gray-800/50 p-6 rounded-lg border border-purple-900/30 backdrop-blur-sm">
+            <h2 className="text-xl font-semibold mb-3 text-purple-300">Stream Info</h2>
+            <p className="text-gray-300">Currently playing: Stream {streamSources.indexOf(currentStreamUrl) + 1}</p>
+            <p className="text-gray-400 text-sm mt-2">Quality: 1080p</p>
+          </div>
+
+          <div className="bg-gray-800/50 p-6 rounded-lg border border-purple-900/30 backdrop-blur-sm">
+            <h2 className="text-xl font-semibold mb-3 text-purple-300">Chat</h2>
+            {showUsernameForm ? (
+              <form onSubmit={handleSetUsername} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter your name..."
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <Button size="sm" className="bg-purple-600 hover:bg-purple-700" type="submit">
+                  Join
+                </Button>
+              </form>
+            ) : (
+              <>
+                <div className="h-40 overflow-y-auto bg-gray-900/70 rounded p-3 mb-3">
+                  {messages.map((msg, i) => (
+                    <div key={i} className={`text-sm mb-2 ${msg.user === username ? 'text-purple-300' : ''}`}>
+                      {msg.type === 'system' ? (
+                        <span className="text-gray-400 italic">{msg.content}</span>
+                      ) : (
+                        <>
+                          <span className="font-medium">{msg.user}:</span>
+                          <span className="ml-2">{msg.content}</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={sendMessage} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type a message..."
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700" type="submit">
+                    Send
+                  </Button>
+                </form>
+              </>
+            )}
+          </div>
+
+          <div className="bg-gray-800/50 p-6 rounded-lg border border-purple-900/30 backdrop-blur-sm">
+            <h2 className="text-xl font-semibold mb-3 text-purple-300">Upcoming Streams</h2>
+            <ul className="space-y-3">
+              <li className="flex justify-between">
+                <span>Gaming Marathon</span>
+                <span className="text-purple-400">Tomorrow, 8PM</span>
+              </li>
+              <li className="flex justify-between">
+                <span>Tech Talk</span>
+                <span className="text-purple-400">Friday, 6PM</span>
+              </li>
+              <li className="flex justify-between">
+                <span>Music Session</span>
+                <span className="text-purple-400">Saturday, 9PM</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }
+
