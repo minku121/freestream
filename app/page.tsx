@@ -23,6 +23,7 @@ export default function StreamingPlatform() {
   const streamSources = [
    
     "https://sendgbxt.ruscfd.lat/720p.m3u8",
+    
   ]
 
   const [currentStreamUrl, setCurrentStreamUrl] = useState(streamSources[0])
@@ -157,21 +158,13 @@ export default function StreamingPlatform() {
           </div>
 
           <div className="bg-gray-800/50 p-6 rounded-lg border border-purple-900/30 backdrop-blur-sm">
-            <h2 className="text-xl font-semibold mb-3 text-purple-300">Upcoming Streams</h2>
-            <ul className="space-y-3">
-              <li className="flex justify-between">
-                <span>Gaming Marathon</span>
-                <span className="text-purple-400">Tomorrow, 8PM</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Tech Talk</span>
-                <span className="text-purple-400">Friday, 6PM</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Music Session</span>
-                <span className="text-purple-400">Saturday, 9PM</span>
-              </li>
-            </ul>
+            <h2 className="text-xl font-semibold mb-3 text-purple-300">Live Score</h2>
+            <iframe 
+              src="https://widget.crictimes.org/" 
+              style={{ width: '100%', minHeight: '450px' }} 
+              frameBorder="0" 
+              scrolling="yes"
+            />
           </div>
         </div>
       </main>
